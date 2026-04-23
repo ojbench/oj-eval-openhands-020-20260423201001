@@ -1,5 +1,6 @@
 #include "buddy.h"
 #include <stdlib.h>
+#include <string.h>
 #define NULL ((void *)0)
 
 #define MAX_RANK 16
@@ -34,16 +35,16 @@ static inline void *get_page_addr(int idx) {
 static void mark_allocated(int idx, int rank) {
     page_status[idx] = rank;
     int block_size = (1 << (rank - 1));
-    for (int i = 1; i < block_size; i++) {
-        page_status[idx + i] = 0;
+    if (block_size > 1) {
+        memset(&page_status[idx + 1], 0, block_size - 1);
     }
 }
 
 static void add_to_free_list(int idx, int rank) {
     page_status[idx] = -rank;
     int block_size = (1 << (rank - 1));
-    for (int i = 1; i < block_size; i++) {
-        page_status[idx + i] = 0;
+    if (block_size > 1) {
+        memset(&page_status[idx + 1], 0, block_size - 1);
     }
     free_node_t *node = (free_node_t *)get_page_addr(idx);
     node->next = free_lists[rank];
@@ -77,13 +78,9 @@ int init_page(void *p, int pgcount) {
     if (page_status != NULL) {
         free(page_status);
     }
-    page_status = (signed char *)malloc(total_pages * sizeof(signed char));
+    page_status = (signed char *)calloc(total_pages, sizeof(signed char));
     if (page_status == NULL) {
         return -ENOSPC;
-    }
-    
-    for (int i = 0; i < total_pages; i++) {
-        page_status[i] = 0;
     }
     
     int remaining = pgcount;
